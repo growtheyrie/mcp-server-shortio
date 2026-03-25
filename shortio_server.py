@@ -303,22 +303,6 @@ class LinkStatsInput(BaseModel):
     )
 
 
-class LinkTopInput(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    link_id: str = Field(min_length=1)
-    column: str = Field(pattern=COLUMN_PATTERN)
-    period: Optional[str] = Field(
-        default="last30",
-        pattern="^(today|yesterday|week|month|lastmonth|last7|last30|total|custom)$",
-    )
-    start_date: Optional[str] = Field(default=None)
-    end_date: Optional[str] = Field(default=None)
-    limit: Optional[int] = Field(default=10, ge=1)
-    prefix: Optional[str] = Field(default=None)
-    include: Optional[FilterDict] = Field(default=None)
-    exclude: Optional[FilterDict] = Field(default=None)
-
-
 class LastClicksInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     domain_id: Optional[int] = Field(default=None)
@@ -894,90 +878,6 @@ async def shortio_link_stats(params: LinkStatsInput) -> str:
             return json.dumps(data, ensure_ascii=False)
     except Exception as e:
         return _handle_error(e, "shortio_link_stats")
-
-
-@mcp.tool(
-    name="shortio_link_top",
-    annotations={
-        "title": "Short.io link top column values",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
-)
-async def shortio_link_top(params: LinkTopInput) -> str:
-    """
-    Get the top N values for a specific analytics column for a single short
-    link, ranked by click count in descending order.
-
-    Identical in capability to shortio_domain_top but scoped to one link.
-    Supports the same include/exclude filters.
-
-    IMPORTANT: Testing shows this endpoint may return "Link undefined not found"
-    for some link IDs. If this occurs, use shortio_domain_top with a paths filter
-    instead: include={"paths": ["/your-link-path"]}
-
-    Date conversion brief:
-        - start_date and end_date are converted to Unix milliseconds internally.
-        - Format: "YYYY-MM-DD HH:MM". Required when period=custom.
-
-    Note: POST endpoint. Uses base URL SHORTIO_STATS_BASE
-
-    Prerequisites:
-        - shortio_list_links: To obtain a valid link_id
-
-    Args:
-        - link_id (str, required): Link ID from shortio_list_links.
-        - column (str, required): Dimension to rank. One of:
-              browser, browser_version, country, city, os, social, refhost,
-              path, path_404, ab_path, utm_source, utm_medium, utm_campaign,
-              goal_completed, method, proto, st, human
-        - period (str, optional): Time period. Default: last30.
-              One of: today, yesterday, week, month, lastmonth, last7, last30, total, custom.
-        - start_date (str, optional): Required when period=custom. Format: "YYYY-MM-DD HH:MM"
-        - end_date (str, optional): Required when period=custom. Format: "YYYY-MM-DD HH:MM"
-        - limit (int, optional): Number of top values to return. Default 10.
-        - prefix (str, optional): Filter column values starting with this string.
-        - include (dict, optional): Same keys as shortio_domain_by_interval.
-        - exclude (dict, optional): Same keys as shortio_domain_by_interval.
-
-    Returns:
-        List of ranked values, each containing:
-        - column (str): Raw value
-        - displayName (str): Human-readable name
-        - score (str): Click count as string
-        Note: no timestamp fields in this response.
-    """
-    logger.info("Tool called: shortio_link_top")
-    try:
-        body: Dict[str, Any] = {
-            "column": params.column,
-            "period": params.period or "last30",
-            "limit": params.limit or 10,
-            "tz": TIMEZONE,
-        }
-        body.update(_build_custom_dates_ms(params))
-        if params.prefix:
-            body["prefix"] = params.prefix
-        inc = _build_filter(params.include)
-        exc = _build_filter(params.exclude)
-        if inc:
-            body["include"] = inc
-        if exc:
-            body["exclude"] = exc
-
-        async with httpx.AsyncClient() as client:
-            r = await client.post(
-                f"{STATS_BASE}/link/{params.link_id}/top",
-                headers=_stats_headers(),
-                json=body,
-                timeout=30,
-            )
-            r.raise_for_status()
-            return json.dumps(r.json(), ensure_ascii=False)
-    except Exception as e:
-        return _handle_error(e, "shortio_link_top")
 
 
 @mcp.tool(
