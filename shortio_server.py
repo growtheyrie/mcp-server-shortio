@@ -5,8 +5,8 @@ Analytics and link management tools for Short.io.
 Deployed on Prefect Horizon.
 
 Two base URLs (loaded from environment):
-    - SHORTIO_API_BASE     — link management (list_domains, list_links)
-    - SHORTIO_STATS_BASE   — all statistics endpoints
+    - SHORTIO_API_BASE: Link management (list_domains, list_links)
+    - SHORTIO_STATS_BASE: All statistics endpoints
 """
 
 import json
@@ -28,7 +28,7 @@ logger = logging.getLogger("shortio_mcp_server")
 
 SHORTIO_API_KEY   = os.environ["SHORTIO_API_KEY"]
 SHORTIO_DOMAIN_ID = int(os.environ.get("SHORTIO_DOMAIN_ID", "0"))
-TIMEZONE          = os.environ.get("TIMEZONE", "Asia/Kuala_Lumpur")
+TIMEZONE          = os.environ.get("TIMEZONE", "Europe/London")
 API_BASE          = os.environ.get("SHORTIO_API_BASE", "https://api.short.io")
 STATS_BASE        = os.environ.get("SHORTIO_STATS_BASE", "https://statistics.short.io/statistics")
 
@@ -53,7 +53,7 @@ def _stats_headers() -> Dict[str, str]:
 
 def _parse_datetime_to_unix_ms(dt_str: str) -> int:
     """
-    Convert "YYYY-MM-DD HH:MM" (local timezone) to Unix milliseconds.
+    Convert "YYYY-MM-DD HH:MM" (local time) to Unix milliseconds.
     Raises ValueError for invalid format.
     """
     dt_str = dt_str.strip()
@@ -62,7 +62,7 @@ def _parse_datetime_to_unix_ms(dt_str: str) -> int:
     except ValueError:
         raise ValueError(
             f"Invalid datetime format. Expected 'YYYY-MM-DD HH:MM' "
-            f"(e.g. '2025-03-01 09:00'). Got: '{dt_str}'"
+            f"(e.g., '2025-03-01 09:00'). Got: '{dt_str}'"
         )
     tz = ZoneInfo(TIMEZONE)
     dt_aware = dt.replace(tzinfo=tz)
@@ -71,8 +71,8 @@ def _parse_datetime_to_unix_ms(dt_str: str) -> int:
 
 def _parse_datetime_to_iso_utc(dt_str: str) -> str:
     """
-    Convert "YYYY-MM-DD HH:MM" (local timezone) to ISO 8601 UTC string.
-    e.g. "2025-12-31T16:00:00.000Z"
+    Convert "YYYY-MM-DD HH:MM" (local time) to ISO 8601 UTC string.
+    E.g., "2025-12-31T16:00:00.000Z"
     """
     dt_str = dt_str.strip()
     try:
@@ -80,7 +80,7 @@ def _parse_datetime_to_iso_utc(dt_str: str) -> str:
     except ValueError:
         raise ValueError(
             f"Invalid datetime format. Expected 'YYYY-MM-DD HH:MM' "
-            f"(e.g. '2025-03-01 09:00'). Got: '{dt_str}'"
+            f"(e.g., '2025-03-01 09:00'). Got: '{dt_str}'"
         )
     tz = ZoneInfo(TIMEZONE)
     dt_aware = dt.replace(tzinfo=tz)
@@ -90,7 +90,7 @@ def _parse_datetime_to_iso_utc(dt_str: str) -> str:
 
 def _convert_iso_utc_to_local(dt_str: Optional[str]) -> Optional[str]:
     """
-    Convert an ISO 8601 UTC string (Z suffix) to local time string.
+    Convert an ISO 8601 UTC string (Z suffix) to a local time string.
     Output format: "YYYY-MM-DD HH:MM:SS" in TIMEZONE.
     Returns original value if conversion fails or input is None/empty.
     """
@@ -107,7 +107,7 @@ def _convert_iso_utc_to_local(dt_str: Optional[str]) -> Optional[str]:
 # --- Response post-processing ---
 
 def _process_domain(d: Dict) -> Dict:
-    """Convert ISO UTC timestamps in a domain record to local time."""
+    """Convert ISO UTC timestamps in a domain record to local timestamps."""
     for field in ("createdAt", "updatedAt", "sslCertExpirationDate"):
         if field in d:
             d[field] = _convert_iso_utc_to_local(d[field])
@@ -115,7 +115,7 @@ def _process_domain(d: Dict) -> Dict:
 
 
 def _process_link(lnk: Dict) -> Dict:
-    """Convert ISO UTC timestamps in a link record to local time."""
+    """Convert ISO UTC timestamps in a link record to local timestamps."""
     for field in ("createdAt", "updatedAt", "expiresAt", "ttl"):
         if field in lnk and lnk[field] and isinstance(lnk[field], str):
             lnk[field] = _convert_iso_utc_to_local(lnk[field])
@@ -123,7 +123,7 @@ def _process_link(lnk: Dict) -> Dict:
 
 
 def _process_interval(obj: Dict) -> Dict:
-    """Convert interval date fields in a stats response to local time."""
+    """Convert interval date fields in a stats response to local timestamps."""
     interval = obj.get("interval", {})
     if interval:
         for field in ("startDate", "endDate", "prevStartDate", "prevEndDate"):
@@ -133,7 +133,7 @@ def _process_interval(obj: Dict) -> Dict:
 
 
 def _process_chart_data(obj: Dict, key: str = "clickStatistics") -> Dict:
-    """Convert x timestamps in chart data to local time."""
+    """Convert x timestamps in chart data to local timestamps."""
     stats = obj.get(key)
     if not stats:
         return obj
@@ -349,10 +349,10 @@ class LastClicksInput(BaseModel):
 )
 async def shortio_list_domains(params: ListDomainsInput) -> str:
     """
-    List all Short.io domains in the account.
+    List all domains in the Short.io account.
 
     Returns each domain's ID, hostname, state, and configuration.
-    Use this to discover domain IDs required by all other shortio tools.
+    Use this to discover the domain IDs required by all other Short.io tools.
 
     Args:
         - limit (int, optional): Number of domains to return. Default 100, max 300.
@@ -360,7 +360,7 @@ async def shortio_list_domains(params: ListDomainsInput) -> str:
     Returns:
         List of domains, each containing:
         - id (int): Domain ID used by all other shortio tools
-        - hostname (str): ASCII domain name (e.g. "go.ahhmazingwellness.com")
+        - hostname (str): ASCII domain name (e.g., "go.ahhmazingwellness.com")
         - unicodeHostname (str): Internationalised domain name
         - state (str): DNS configuration status. One of:
               configured, not_configured, not_registered,
@@ -372,7 +372,7 @@ async def shortio_list_domains(params: ListDomainsInput) -> str:
         - hideVisitorIp (bool): Whether visitor IPs are stored
         - httpsLevel (str): HTTPS enforcement. One of: none, redirect, hsts
         - enableAI (bool): Whether AI features are enabled
-        - isFavorite (bool): Whether domain is marked as favourite
+        - isFavorite (bool): Whether the domain is marked as favourite
         - exportEnabled (bool): Whether data export is enabled
         - createdAt (str): Creation datetime in local time "YYYY-MM-DD HH:MM:SS"
         - updatedAt (str): Last update datetime in local time "YYYY-MM-DD HH:MM:SS"
@@ -424,11 +424,11 @@ async def shortio_list_links(params: ListLinksInput) -> str:
               Format: "YYYY-MM-DD HH:MM"
         - date_sort_order (str, optional): Sort direction. One of: asc, desc.
         - page_token (str, optional): Pagination cursor. Pass nextPageToken from
-              previous response to fetch the next page.
+              the previous response to fetch the next page.
 
     Returns:
         - count (int): Number of links returned
-        - nextPageToken (str or null): Pass to page_token for next page
+        - nextPageToken (str or null): Pass to page_token for the next page
         - links (list): Each containing:
               - id (str): Link ID used by statistics tools
               - shortURL (str): The shortened URL
@@ -521,11 +521,11 @@ async def shortio_domain_stats(params: DomainStatsInput) -> str:
 
     Returns:
         Summary metrics:
-        - clicks (number): Total clicks in the period
-        - humanClicks (number): Clicks excluding bots
-        - prevClicks (number): Total clicks in the previous comparison period
-        - prevHumanClicks (number): Human clicks in the previous comparison period
-        - links (number): New links created in the period
+        - clicks (int): Total clicks in the period
+        - humanClicks (int): Clicks excluding bots
+        - prevClicks (int): Total clicks in the previous comparison period
+        - prevHumanClicks (int): Human clicks in the previous comparison period
+        - links (int): New links created in the period
         - clicksPerLink (str): Average clicks per link
         - humanClicksPerLink (str): Average human clicks per link
         - prevClicksChange (str): % change in total clicks vs previous period
@@ -547,14 +547,14 @@ async def shortio_domain_stats(params: DomainStatsInput) -> str:
               Note: some cities return null for name and countryCode when unresolved
         - os (list): [{os, score}]
         - referer (list): [{refhost, score}]
-              Note: field key is refhost not referer in actual API response
+              Note: field key is refhost, not referer, in the actual API response
         - social (list): [{social, score}]
         - utm_medium, utm_source, utm_campaign, utm_term, utm_content (list):
               UTM breakdown arrays
 
         Chart data (populated only when clicks_chart_interval is set):
         - clickStatistics.datasets[0].data (list): [{x, y}]
-              x is local time "YYYY-MM-DD HH:MM:SS", y is click count as string
+              x is the local timestamp "YYYY-MM-DD HH:MM:SS", y is the click count as string
     """
     logger.info("Tool called: shortio_domain_stats")
     try:
@@ -630,8 +630,8 @@ async def shortio_domain_by_interval(params: DomainByIntervalInput) -> str:
         - clicksStatistics (list): Time-series data points, each containing:
               IMPORTANT: response key is clicksStatistics (with trailing 's'),
               not clickStatistics as the spec states.
-              - x (str): Local time "YYYY-MM-DD HH:MM:SS" for start of bucket
-              - y (str): Click count as string (e.g. "12")
+              - x (str): Local timestamp "YYYY-MM-DD HH:MM:SS" for start of bucket
+              - y (str): Click count as string (e.g., "12")
     """
     logger.info("Tool called: shortio_domain_by_interval")
     try:
@@ -758,12 +758,12 @@ async def shortio_domain_top(params: DomainTopInput) -> str:
 async def shortio_link_clicks(params: LinkClicksInput) -> str:
     """
     Get total click counts for multiple links in a single request.
-    Use to compare performance across links — e.g. different CTAs on a landing page.
+    Use to compare performance across links — e.g., different CTAs on a landing page.
 
     Date conversion brief:
         - start_date and end_date are converted to ISO 8601 UTC strings internally.
         - Format: "YYYY-MM-DD HH:MM". If omitted, returns all-time totals.
-        - Note: this endpoint uses ISO 8601 UTC (not Unix ms) unlike other stats tools.
+        - Note: this endpoint uses ISO 8601 UTC (not Unix ms), unlike other stats tools.
 
     Note: GET endpoint. Uses base URL SHORTIO_STATS_BASE
 
@@ -844,8 +844,8 @@ async def shortio_link_stats(params: LinkStatsInput) -> str:
 
     Returns:
         Summary metrics:
-        - totalClicks (number): Total clicks in the period
-        - humanClicks (number): Clicks excluding bots
+        - totalClicks (int): Total clicks in the period
+        - humanClicks (int): Clicks excluding bots
         - totalClicksChange (str): % change in total clicks vs previous period
         - humanClicksChange (str): % change in human clicks vs previous period
 
@@ -909,7 +909,7 @@ async def shortio_link_stats(params: LinkStatsInput) -> str:
 async def shortio_link_top(params: LinkTopInput) -> str:
     """
     Get the top N values for a specific analytics column for a single short
-    link, ranked by click count descending.
+    link, ranked by click count in descending order.
 
     Identical in capability to shortio_domain_top but scoped to one link.
     Supports the same include/exclude filters.
@@ -1004,7 +1004,7 @@ async def shortio_last_clicks(params: LastClicksInput) -> str:
               results, extract the dt value from the last record received,
               reformat it as "YYYY-MM-DD HH:MM", and pass it to before_date.
         - dt in the response already carries the local timezone offset
-              (e.g. "2026-03-22T04:30:38.549+08:00") — no conversion applied.
+              (e.g., "2026-03-22T04:30:38.549+08:00") — no conversion applied.
 
     Note: POST endpoint. Uses base URL SHORTIO_STATS_BASE
 
@@ -1026,15 +1026,15 @@ async def shortio_last_clicks(params: LastClicksInput) -> str:
     Returns:
         List of individual click records, each containing:
         - dt (str): Exact timestamp with local timezone offset already applied
-              (e.g. "2026-03-22T04:30:38.549+08:00") — no further conversion needed
-        - path (str): Short link slug clicked (e.g. "/*", "/wdb26-prereg")
+              (e.g., "2026-03-22T04:30:38.549+08:00") — no further conversion needed
+        - path (str): Short link slug clicked (e.g., "/*", "/wdb26-prereg")
         - lcpath (str): Lowercase version of path
         - human (bool): True if identified as human
         - method (str): HTTP method. One of: GET, POST, PUT, DELETE, HEAD
-        - browser (str): Browser name (e.g. "Chrome")
-        - browser_version (str): Browser version (e.g. "131")
-        - os (str): Operating system (e.g. "Windows")
-        - country (str): Country name (e.g. "Malaysia")
+        - browser (str): Browser name (e.g., "Chrome")
+        - browser_version (str): Browser version (e.g., "131")
+        - os (str): Operating system (e.g., "Windows")
+        - country (str): Country name (e.g., "Malaysia")
         - city (str): City name if available (may be absent for some records)
         - geoname_id (str): Geoname ID of the city
         - ip (str): Visitor IP (last octets may be masked for EU visitors)
@@ -1042,9 +1042,9 @@ async def shortio_last_clicks(params: LastClicksInput) -> str:
         - refhost (str): Referrer hostname only
         - social (str): Social network name if applicable
         - url (str): Full destination URL after redirect
-        - host (str): Domain name (e.g. "go.ahhmazingwellness.com")
+        - host (str): Domain name (e.g., "go.ahhmazingwellness.com")
         - proto (str): Protocol. One of: http, https
-        - st (number): HTTP status code (e.g. 302)
+        - st (number): HTTP status code (e.g., 302)
         - utm_source, utm_medium, utm_campaign, utm_term, utm_content (str): UTM values
         - ab_path (str or null): A/B test path if applicable
         - goal_completed (str or null): Conversion goal identifier if applicable
