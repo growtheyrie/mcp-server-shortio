@@ -22,7 +22,7 @@ Two Short.io API endpoints were confirmed broken during testing and are not
 implemented in this server. Workarounds using domain-level tools are documented below.
 
 ### `POST /statistics/link/{id}/by_interval`
-Returns 404 for all link IDs tested. The endpoint does not exist despite
+Returns HTTP 404 for all link IDs tested. The endpoint does not exist despite
 appearing in Short.io's OpenAPI documentation.
 
 **Workaround**: Use `shortio_domain_by_interval` with a `paths` filter:
