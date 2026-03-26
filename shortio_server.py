@@ -250,7 +250,7 @@ class FilterDict(BaseModel):
 class DomainByIntervalInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     domain_id: Optional[int] = Field(default=None)
-    clicks_chart_interval: str = Field(pattern="^(hour|day|week|month)$")
+    clicks_chart_interval: Optional[str] = Field(pattern="^(hour|day|week|month)$")
     period: Optional[str] = Field(
         default="last30",
         pattern="^(today|yesterday|week|month|lastmonth|last7|last30|total|custom)$",
@@ -597,7 +597,7 @@ async def shortio_domain_by_interval(params: DomainByIntervalInput) -> str:
 
     Args:
         - domain_id (int, optional): Domain ID. Defaults to SHORTIO_DOMAIN_ID env var.
-        - clicks_chart_interval (str, required): Time bucket granularity.
+        - clicks_chart_interval (str, optional): Time bucket granularity.
               One of: hour, day, week, month.
         - period (str, optional): Time period. Default: last30.
               One of: today, yesterday, week, month, lastmonth, last7, last30, total, custom.
