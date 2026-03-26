@@ -55,7 +55,7 @@ shortio_domain_top(
 
 ```bash
 pip install -r requirements.txt
-cp env.template .env
+cp .env.template .env
 # Fill in your values in .env
 fastmcp inspect shortio_server.py:mcp
 ```
