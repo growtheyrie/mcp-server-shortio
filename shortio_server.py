@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 # --- Setup ---
@@ -212,7 +213,7 @@ class ListLinksInput(BaseModel):
     limit: Optional[int] = Field(default=None, ge=1, le=150)
     before_date: Optional[str] = Field(default=None)
     after_date: Optional[str] = Field(default=None)
-    date_sort_order: Optional[str] = Field(default=None, pattern="^(asc|desc)$")
+    date_sort_order: Optional[Annotated[str, Field(pattern="^(asc|desc)$")]] = None
     page_token: Optional[str] = Field(default=None)
 
 
@@ -225,9 +226,7 @@ class DomainStatsInput(BaseModel):
     )
     start_date: Optional[str] = Field(default=None)
     end_date: Optional[str] = Field(default=None)
-    clicks_chart_interval: Optional[str] = Field(
-        default=None, pattern="^(hour|day|week|month)$"
-    )
+    clicks_chart_interval: Optional[Annotated[str, Field(pattern="^(hour|day|week|month)$")]] = None
 
 
 class FilterDict(BaseModel):
@@ -250,7 +249,7 @@ class FilterDict(BaseModel):
 class DomainByIntervalInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     domain_id: Optional[int] = Field(default=None)
-    clicks_chart_interval: Optional[str] = Field(pattern="^(hour|day|week|month)$")
+    clicks_chart_interval: Optional[Annotated[str, Field(pattern="^(hour|day|week|month)$")]] = None
     period: Optional[str] = Field(
         default="last30",
         pattern="^(today|yesterday|week|month|lastmonth|last7|last30|total|custom)$",
@@ -298,9 +297,7 @@ class LinkStatsInput(BaseModel):
     start_date: Optional[str] = Field(default=None)
     end_date: Optional[str] = Field(default=None)
     skip_tops: Optional[bool] = Field(default=False)
-    clicks_chart_interval: Optional[str] = Field(
-        default=None, pattern="^(hour|day|week|month)$"
-    )
+    clicks_chart_interval: Optional[Annotated[str, Field(pattern="^(hour|day|week|month)$")]] = None
 
 
 class LastClicksInput(BaseModel):
@@ -599,6 +596,7 @@ async def shortio_domain_by_interval(params: DomainByIntervalInput) -> str:
         - domain_id (int, optional): Domain ID. Defaults to SHORTIO_DOMAIN_ID env var.
         - clicks_chart_interval (str, optional): Time bucket granularity.
               One of: hour, day, week, month.
+              If omitted, the API defaults to day-level buckets.
         - period (str, optional): Time period. Default: last30.
               One of: today, yesterday, week, month, lastmonth, last7, last30, total, custom.
         - start_date (str, optional): Required when period=custom. Format: "YYYY-MM-DD HH:MM"
@@ -621,10 +619,11 @@ async def shortio_domain_by_interval(params: DomainByIntervalInput) -> str:
     try:
         domain_id = _resolve_domain_id(params.domain_id)
         body: Dict[str, Any] = {
-            "clicksChartInterval": params.clicks_chart_interval,
             "period": params.period or "last30",
             "tz": TIMEZONE,
         }
+        if params.clicks_chart_interval:
+            body["clicksChartInterval"] = params.clicks_chart_interval
         body.update(_build_custom_dates_ms(params))
         inc = _build_filter(params.include)
         exc = _build_filter(params.exclude)
